@@ -5,23 +5,35 @@ import { isValidObjectId } from 'mongoose';
 import dbConnect from '@/lib/db-connect';
 import Assignment from '@/models/assignment';
 
+interface SessionUser {
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  role?: string;
+}
+
+interface CustomSession {
+  user?: SessionUser;
+  expires: string;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession(authOptions) as CustomSession;
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  try {
-    if (!isValidObjectId(params.id)) {
-      return NextResponse.json(
-        { error: 'Invalid assignment ID' },
-        { status: 400 }
-      );
-    }
+  if (!isValidObjectId(params.id)) {
+    return NextResponse.json(
+      { error: 'Invalid assignment ID' },
+      { status: 400 }
+    );
+  }
 
+  try {
     await dbConnect();
     const assignment = await Assignment.findById(params.id)
       .populate('subjectId', 'name code')
@@ -48,57 +60,47 @@ export async function PUT(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
+  const session = await getServerSession(authOptions) as CustomSession;
+  if (!session?.user?.role || session.user.role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  if (!isValidObjectId(params.id)) {
+    return NextResponse.json(
+      { error: 'Invalid assignment ID' },
+      { status: 400 }
+    );
+  }
+
   try {
-    if (!isValidObjectId(params.id)) {
+    const data = await request.json();
+
+    // Validate required fields
+    if (!data.title || !data.description || !data.subjectId || !data.dueDate) {
       return NextResponse.json(
-        { error: 'Invalid assignment ID' },
+        { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    const data = await request.json();
-
-    // Only admin can update certain fields
-    if (!session.user?.role === 'admin') {
-      const allowedFields = ['status'];
-      const providedFields = Object.keys(data);
-      const hasDisallowedFields = providedFields.some(field => !allowedFields.includes(field));
-      
-      if (hasDisallowedFields) {
-        return NextResponse.json(
-          { error: 'You can only update the status of the assignment' },
-          { status: 403 }
-        );
-      }
+    // Validate ObjectIds
+    if (!isValidObjectId(data.subjectId)) {
+      return NextResponse.json(
+        { error: 'Invalid subject ID' },
+        { status: 400 }
+      );
     }
 
-    // Validate dueDate if provided
-    if (data.dueDate) {
-      const dueDate = new Date(data.dueDate);
-      if (isNaN(dueDate.getTime())) {
-        return NextResponse.json(
-          { error: 'Invalid due date' },
-          { status: 400 }
-        );
-      }
-      data.dueDate = dueDate;
+    // Ensure assignedTo is an array if provided
+    if (data.assignedTo && (!Array.isArray(data.assignedTo))) {
+      return NextResponse.json(
+        { error: 'assignedTo must be an array of student IDs' },
+        { status: 400 }
+      );
     }
 
-    // Validate assignedTo if provided
-    if (data.assignedTo) {
-      if (!Array.isArray(data.assignedTo) || !data.assignedTo.length) {
-        return NextResponse.json(
-          { error: 'assignedTo must be a non-empty array of student IDs' },
-          { status: 400 }
-        );
-      }
-
-      // Validate each student ID
+    // Validate student IDs if provided
+    if (data.assignedTo?.length > 0) {
       for (const studentId of data.assignedTo) {
         if (!isValidObjectId(studentId)) {
           return NextResponse.json(
@@ -109,14 +111,29 @@ export async function PUT(
       }
     }
 
+    // Validate dueDate
+    const dueDate = new Date(data.dueDate);
+    if (isNaN(dueDate.getTime())) {
+      return NextResponse.json(
+        { error: 'Invalid due date' },
+        { status: 400 }
+      );
+    }
+
     await dbConnect();
+
     const assignment = await Assignment.findByIdAndUpdate(
       params.id,
-      { $set: data },
-      { new: true, runValidators: true }
-    )
-    .populate('subjectId', 'name code')
-    .populate('assignedTo', 'name email');
+      {
+        ...data,
+        dueDate: dueDate,
+        assignedTo: data.assignedTo || []
+      },
+      { new: true }
+    ).populate([
+      { path: 'subjectId', select: 'name code' },
+      { path: 'assignedTo', select: 'name email' }
+    ]);
 
     if (!assignment) {
       return NextResponse.json(
@@ -139,19 +156,19 @@ export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.role !== 'admin') {
+  const session = await getServerSession(authOptions) as CustomSession;
+  if (!session?.user?.role || session.user.role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  try {
-    if (!isValidObjectId(params.id)) {
-      return NextResponse.json(
-        { error: 'Invalid assignment ID' },
-        { status: 400 }
-      );
-    }
+  if (!isValidObjectId(params.id)) {
+    return NextResponse.json(
+      { error: 'Invalid assignment ID' },
+      { status: 400 }
+    );
+  }
 
+  try {
     await dbConnect();
     const assignment = await Assignment.findByIdAndDelete(params.id);
 

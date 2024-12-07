@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function SchedulePage() {
+export default function ScheduleLayout() {
   redirect('/schedules');
 } 

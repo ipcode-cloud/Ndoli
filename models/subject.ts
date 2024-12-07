@@ -18,6 +18,16 @@ const subjectSchema = new mongoose.Schema<Subject>({
     type: String,
     trim: true,
   },
+  credits: {
+    type: Number,
+    required: [true, 'Credits are required'],
+    min: [1, 'Credits must be at least 1'],
+  },
+  teacher: {
+    type: String,
+    required: [true, 'Teacher name is required'],
+    trim: true,
+  },
 }, {
   timestamps: true,
 });

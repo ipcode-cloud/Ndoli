@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     const data = await request.json();
 
     // Validate required fields
-    if (!data.title || !data.description || !data.subjectId || !data.dueDate || !data.assignedTo) {
+    if (!data.title || !data.description || !data.subjectId || !data.dueDate) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -90,21 +90,23 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate assignedTo array
-    if (!Array.isArray(data.assignedTo) || !data.assignedTo.length) {
+    // Ensure assignedTo is an array if provided
+    if (data.assignedTo && (!Array.isArray(data.assignedTo))) {
       return NextResponse.json(
-        { error: 'assignedTo must be a non-empty array of student IDs' },
+        { error: 'assignedTo must be an array of student IDs' },
         { status: 400 }
       );
     }
 
-    // Validate each student ID in assignedTo
-    for (const studentId of data.assignedTo) {
-      if (!isValidObjectId(studentId)) {
-        return NextResponse.json(
-          { error: 'Invalid student ID in assignedTo array' },
-          { status: 400 }
-        );
+    // Validate student IDs if provided
+    if (data.assignedTo?.length > 0) {
+      for (const studentId of data.assignedTo) {
+        if (!isValidObjectId(studentId)) {
+          return NextResponse.json(
+            { error: 'Invalid student ID in assignedTo array' },
+            { status: 400 }
+          );
+        }
       }
     }
 
@@ -122,7 +124,8 @@ export async function POST(request: Request) {
     const assignment = await Assignment.create({
       ...data,
       status: 'Not Started',
-      dueDate: dueDate
+      dueDate: dueDate,
+      assignedTo: data.assignedTo || []
     });
 
     const populatedAssignment = await assignment.populate([

@@ -3,6 +3,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StudentTable } from "@/components/students/student-table";
+import { SubjectTable } from "@/components/subjects/subject-table";
+import { AssignmentTable } from "@/components/assignments/assignment-table";
+import { ScheduleTable } from "@/components/schedules/schedule-table";
 import { useEffect, useState } from "react";
 import { Student, Subject, Assignment, Schedule } from "@/lib/types";
 
@@ -25,26 +28,18 @@ export default function AdminDashboard({ initialData }: DashboardProps) {
 
   useEffect(() => {
     console.log('Setting initial data:', initialData);
-    if (initialData?.students) {
-      console.log('Students before setting:', initialData.students);
-      setStudents(initialData.students);
+    if (initialData) {
+      setStudents(initialData.students || []);
       setSubjects(initialData.subjects || []);
       setAssignments(initialData.assignments || []);
       setSchedules(initialData.schedules || []);
     }
   }, [initialData]);
 
-  // Calculate stats with detailed logging
-  const activeStudents = students.filter(student => {
-    console.log('Checking student status:', student.name, student.status);
-    return student.status === 'Active';
-  }).length;
-  console.log('Active students count:', activeStudents, 'Total students:', students.length);
-
+  // Calculate stats
+  const activeStudents = students.filter(student => student.status === 'Active').length;
   const totalSubjects = subjects.length;
   const pendingAssignments = assignments.filter(a => a.status === 'Not Started').length;
-
-  console.log('Rendering with students:', students);
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -95,39 +90,16 @@ export default function AdminDashboard({ initialData }: DashboardProps) {
           <TabsTrigger value="schedules">Schedules</TabsTrigger>
         </TabsList>
         <TabsContent value="students" className="space-y-4">
-          {students.length > 0 ? (
-            <StudentTable data={students} />
-          ) : (
-            <Card>
-              <CardContent className="py-4 text-center text-muted-foreground">
-                No students found
-              </CardContent>
-            </Card>
-          )}
+          <StudentTable data={students} />
         </TabsContent>
         <TabsContent value="subjects" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Subjects</CardTitle>
-            </CardHeader>
-            <CardContent>Subject management coming soon...</CardContent>
-          </Card>
+          <SubjectTable data={subjects} />
         </TabsContent>
         <TabsContent value="assignments" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Assignments</CardTitle>
-            </CardHeader>
-            <CardContent>Assignment management coming soon...</CardContent>
-          </Card>
+          <AssignmentTable data={assignments} />
         </TabsContent>
         <TabsContent value="schedules" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Schedules</CardTitle>
-            </CardHeader>
-            <CardContent>Schedule management coming soon...</CardContent>
-          </Card>
+          <ScheduleTable data={schedules} />
         </TabsContent>
       </Tabs>
     </div>

@@ -16,35 +16,57 @@ async function fetchData() {
   console.log('Base URL:', baseUrl);
 
   try {
-    // Fetch students first
-    console.log('Fetching students...');
-    const studentsRes = await fetch(`${baseUrl}/api/students`, {
-      headers: {
-        'Cookie': headersList.get('cookie') || '',
-        'Content-Type': 'application/json',
-      },
-      cache: 'no-store'
+    // Fetch all data in parallel
+    const [studentsRes, subjectsRes, assignmentsRes, schedulesRes] = await Promise.all([
+      fetch(`${baseUrl}/api/students`, {
+        headers: {
+          'Cookie': headersList.get('cookie') || '',
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store'
+      }),
+      fetch(`${baseUrl}/api/subjects`, {
+        headers: {
+          'Cookie': headersList.get('cookie') || '',
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store'
+      }),
+      fetch(`${baseUrl}/api/assignments`, {
+        headers: {
+          'Cookie': headersList.get('cookie') || '',
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store'
+      }),
+      fetch(`${baseUrl}/api/schedules`, {
+        headers: {
+          'Cookie': headersList.get('cookie') || '',
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store'
+      })
+    ]);
+
+    // Check responses and parse data
+    const students = studentsRes.ok ? await studentsRes.json() : [];
+    const subjects = subjectsRes.ok ? await subjectsRes.json() : [];
+    const assignments = assignmentsRes.ok ? await assignmentsRes.json() : [];
+    const schedules = schedulesRes.ok ? await schedulesRes.json() : [];
+
+    console.log('Fetched data:', {
+      studentsCount: students.length,
+      subjectsCount: subjects.length,
+      assignmentsCount: assignments.length,
+      schedulesCount: schedules.length
     });
 
-    if (!studentsRes.ok) {
-      const errorText = await studentsRes.text();
-      console.error('Students API Error:', studentsRes.status, errorText);
-      throw new Error(`Failed to fetch students: ${errorText}`);
-    }
-
-    const students = await studentsRes.json();
-    console.log('Fetched students:', students);
-
-    // Initialize with empty arrays for other data
-    const data = {
+    return {
       students,
-      subjects: [],
-      assignments: [],
-      schedules: []
+      subjects,
+      assignments,
+      schedules
     };
-
-    console.log('Final dashboard data:', data);
-    return data;
   } catch (error) {
     console.error('Error in fetchData:', error);
     return {
@@ -76,17 +98,6 @@ export default async function DashboardPage() {
     const initialData = await fetchData();
     console.log('Received initial data:', initialData);
 
-    if (!initialData?.students) {
-      console.log('No students data, showing empty state');
-      initialData = {
-        students: [],
-        subjects: [],
-        assignments: [],
-        schedules: []
-      };
-    }
-
-    console.log('Rendering AdminDashboard with data:', initialData);
     return <AdminDashboard initialData={initialData} />;
   } catch (error) {
     console.error('Error in DashboardPage:', error);
