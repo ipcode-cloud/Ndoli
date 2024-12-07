@@ -1,83 +1,135 @@
 'use client';
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Upload, Users, BookOpen, AlertCircle } from "lucide-react";
-import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StudentTable } from "@/components/students/student-table";
+import { useEffect, useState } from "react";
+import { Student, Subject, Assignment, Schedule } from "@/lib/types";
 
-export default function AdminDashboard() {
-  const [conflicts, setConflicts] = useState<string[]>([]);
+interface DashboardProps {
+  initialData: {
+    students: Student[];
+    subjects: Subject[];
+    assignments: Assignment[];
+    schedules: Schedule[];
+  };
+}
+
+export default function AdminDashboard({ initialData }: DashboardProps) {
+  console.log('AdminDashboard received initialData:', initialData);
+
+  const [students, setStudents] = useState<Student[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+
+  useEffect(() => {
+    console.log('Setting initial data:', initialData);
+    if (initialData?.students) {
+      console.log('Students before setting:', initialData.students);
+      setStudents(initialData.students);
+      setSubjects(initialData.subjects || []);
+      setAssignments(initialData.assignments || []);
+      setSchedules(initialData.schedules || []);
+    }
+  }, [initialData]);
+
+  // Calculate stats with detailed logging
+  const activeStudents = students.filter(student => {
+    console.log('Checking student status:', student.name, student.status);
+    return student.status === 'Active';
+  }).length;
+  console.log('Active students count:', activeStudents, 'Total students:', students.length);
+
+  const totalSubjects = subjects.length;
+  const pendingAssignments = assignments.filter(a => a.status === 'Not Started').length;
+
+  console.log('Rendering with students:', students);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Upload Management
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Timetable Upload</h3>
-            <Button className="w-full">Upload Timetable</Button>
-          </div>
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Assignment Upload</h3>
-            <Button className="w-full">Upload Assignments</Button>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+      <div className="flex items-center justify-between space-y-2">
+        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+      </div>
+      
+      {/* Overview Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Students</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{activeStudents}</div>
+            <p className="text-xs text-muted-foreground">
+              out of {students.length} total students
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Subjects</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalSubjects}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Assignments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{pendingAssignments}</div>
+            <p className="text-xs text-muted-foreground">
+              out of {assignments.length} total assignments
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Student Overview
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[200px]">
-            {/* Student list would go here */}
-          </ScrollArea>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5" />
-            Recent Assignments
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[200px]">
-            {/* Recent assignments would go here */}
-          </ScrollArea>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5" />
-            Schedule Conflicts
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[200px]">
-            {conflicts.map((conflict, index) => (
-              <div
-                key={index}
-                className="p-2 text-sm text-destructive bg-destructive/10 rounded-lg mb-2"
-              >
-                {conflict}
-              </div>
-            ))}
-          </ScrollArea>
-        </CardContent>
-      </Card>
+      {/* Data Tables */}
+      <Tabs defaultValue="students" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="students">Students</TabsTrigger>
+          <TabsTrigger value="subjects">Subjects</TabsTrigger>
+          <TabsTrigger value="assignments">Assignments</TabsTrigger>
+          <TabsTrigger value="schedules">Schedules</TabsTrigger>
+        </TabsList>
+        <TabsContent value="students" className="space-y-4">
+          {students.length > 0 ? (
+            <StudentTable data={students} />
+          ) : (
+            <Card>
+              <CardContent className="py-4 text-center text-muted-foreground">
+                No students found
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+        <TabsContent value="subjects" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Subjects</CardTitle>
+            </CardHeader>
+            <CardContent>Subject management coming soon...</CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="assignments" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Assignments</CardTitle>
+            </CardHeader>
+            <CardContent>Assignment management coming soon...</CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="schedules" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Schedules</CardTitle>
+            </CardHeader>
+            <CardContent>Schedule management coming soon...</CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

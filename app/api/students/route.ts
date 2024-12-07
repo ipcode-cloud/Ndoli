@@ -17,29 +17,40 @@ interface CustomSession extends Session {
 }
 
 export async function GET() {
+  console.log('GET /api/students - Start');
   const session = await getServerSession(authOptions) as CustomSession;
+  console.log('Session:', session);
   
   if (!session || session.user?.role !== 'admin') {
+    console.log('Unauthorized access attempt');
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
   try {
+    console.log('Connecting to database...');
     await connectDB();
+    console.log('Fetching students...');
     const students = await Student.find({}).sort({ createdAt: -1 });
+    console.log(`Found ${students.length} students`);
     
     // Transform the data to ensure consistent ID format
     const transformedStudents = students.map(student => {
       const obj = student.toObject();
       return {
-        ...obj,
         id: obj._id.toString(),
-        _id: undefined
+        name: obj.name,
+        email: obj.email,
+        grade: obj.grade,
+        status: obj.status,
+        createdAt: obj.createdAt.toISOString(),
+        updatedAt: obj.updatedAt.toISOString()
       };
     });
     
+    console.log('Sending response:', transformedStudents);
     return NextResponse.json(transformedStudents);
   } catch (error) {
-    console.error('Error fetching students:', error);
+    console.error('Error in GET /api/students:', error);
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }
@@ -70,9 +81,13 @@ export async function POST(request: Request) {
     // Create new student
     const student = await Student.create(data);
     const transformedStudent = {
-      ...student.toObject(),
       id: student._id.toString(),
-      _id: undefined
+      name: student.name,
+      email: student.email,
+      grade: student.grade,
+      status: student.status,
+      createdAt: student.createdAt.toISOString(),
+      updatedAt: student.updatedAt.toISOString()
     };
     
     return NextResponse.json(transformedStudent, { status: 201 });
